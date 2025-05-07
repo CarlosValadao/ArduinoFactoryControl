@@ -1,10 +1,23 @@
 #define F_CPU 160000000UL
+#define set_bit(Y, bit_x) (Y |= (1 << bit_x))
+#define clr_bit(Y, bit_x) (Y &= ~(1 << bit_x))
+#define tst_bit(Y, bit_x) (Y & (1 << bit_x))
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-uint8_t LUT[10] = {0x7E, 0x30, 0x6D, 0x79, 0x33, 0x5B, 0x5F, 0x70, 0x7F, 0x7B};
+const uint8_t NUMBER_ZERO_DISPLAY[8] = {0, 0, 1, 1, 1, 1, 1, 1};
+const uint8_t NUMBER_ONE_DISPLAY[8] = {0, 0, 0, 0, 0, 1, 1, 0};
+const uint8_t NUMBER_TWO_DISPLAY[8] = {0, 1, 0, 1, 1, 0, 1, 1};
+const uint8_t NUMBER_THREE_DISPLAY[8] = {0, 1, 0, 0, 1, 1, 1, 1};
+const uint8_t NUMBER_FOUR_DISPLAY[8] = {0, 1, 1, 0, 0, 1, 1, 0};
+const uint8_t NUMBER_FIVE_DISPLAY[8] = {0, 1, 1, 0, 1, 1, 0, 1};
+const uint8_t NUMBER_SIX_DISPLAY[8] = {0, 1, 1, 1, 1, 1, 0, 1};
+const uint8_t NUMBER_SEVEN_DISPLAY[8] = {0, 0, 0, 0, 0, 1, 1, 1};
+const uint8_t NUMBER_EIGHT_DISPLAY[8] = {0, 1, 1, 1, 1, 1, 1, 1};
+const uint8_t NUMBER_NINE_DISPLAY[8] = {0, 1, 1, 0, 1, 1, 1, 1};
 
-volatile uint8_t num_test = 0;
+uint8_t counter_display = 0;
 
 int main()
 {
@@ -29,11 +42,12 @@ int main()
 
 ISR(INT0_vect)
 {
-    static uint8_t num = 0;
-    num_test += 1;
+    counter_display += 1;
 
-    if (num == 10)
-        num = 0;
+    if (counter_display == 10)
+    {
+        counter_display = 0;
+    }
 }
 
 ISR(TIMER0_COMPA_vect)
@@ -41,20 +55,76 @@ ISR(TIMER0_COMPA_vect)
 
     static unsigned int counter = 0;
     static unsigned int counter_test = 0;
+    static unsigned int counter_test_display = 0;
+    static unsigned int value = 0;
 
-    counter += 1;
+    switch (counter_display)
+    {
+    case 0:
+        value = NUMBER_ZERO_DISPLAY[counter_test_display];
+        break;
 
-    if (counter == 1000)
+    case 1:
+        value = NUMBER_ONE_DISPLAY[counter_test_display];
+        break;
+
+    case 2:
+        value = NUMBER_TWO_DISPLAY[counter_test_display];
+        break;
+
+    case 3:
+        value = NUMBER_THREE_DISPLAY[counter_test_display];
+        break;
+
+    case 4:
+        value = NUMBER_FOUR_DISPLAY[counter_test_display];
+        break;
+
+    case 5:
+        value = NUMBER_FIVE_DISPLAY[counter_test_display];
+        break;
+
+    case 6:
+        value = NUMBER_SIX_DISPLAY[counter_test_display];
+        break;
+
+    case 7:
+        value = NUMBER_SEVEN_DISPLAY[counter_test_display];
+        break;
+
+    case 8:
+        value = NUMBER_EIGHT_DISPLAY[counter_test_display];
+        break;
+
+    case 9:
+        value = NUMBER_NINE_DISPLAY[counter_test_display];
+        break;
+
+    default:
+        break;
+    }
+
+    if (!tst_bit(PORTC, PC0))
     {
         counter_test += 1;
 
-        PORTC |= 0b00010000; // 00000001;
-        counter = 0;
-        PORTC ^= 0b000000001;
-        if (counter_test == 16)
+        if (value)
+            set_bit(PORTC, PC4);
+        else
+            clr_bit(PORTC, PC4);
+
+        counter_test_display += 1;
+
+        if (counter_test_display == 9)
         {
-            PORTC |= 0b000100000;
-            // PORTC &= 0b111011111;
+            set_bit(PORTC, PC5);
+            counter_test_display = 0;
+        }
+        else
+        {
+            clr_bit(PORTC, PC5);
         }
     }
+
+    PORTC ^= 0b000000001;
 }
