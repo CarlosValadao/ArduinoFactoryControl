@@ -17,7 +17,9 @@ const uint8_t NUMBER_SEVEN_DISPLAY[8] = {0, 0, 0, 0, 0, 1, 1, 1};
 const uint8_t NUMBER_EIGHT_DISPLAY[8] = {0, 1, 1, 1, 1, 1, 1, 1};
 const uint8_t NUMBER_NINE_DISPLAY[8] = {0, 1, 1, 0, 1, 1, 1, 1};
 
-uint8_t counter_display = 0;
+uint8_t counter_display_1 = 0;
+uint8_t counter_display_2 = 0;
+
 
 int main()
 {
@@ -42,12 +44,16 @@ int main()
 
 ISR(INT0_vect)
 {
-    counter_display += 1;
+    static unsigned int counter = 0;
+    counter += 1;
 
-    if (counter_display == 10)
+    if (counter == 99)
     {
-        counter_display = 0;
+        counter = 0;
     }
+
+    counter_display_1 = counter % 10;
+    counter_display_2 = counter / 10;
 }
 
 ISR(TIMER0_COMPA_vect)
@@ -56,48 +62,95 @@ ISR(TIMER0_COMPA_vect)
     static unsigned int counter = 0;
     static unsigned int counter_test = 0;
     static unsigned int counter_test_display = 0;
-    static unsigned int value = 0;
+    static unsigned int value_display_1 = 0;
+    static unsigned int value_display_2 = 0;
 
-    switch (counter_display)
+    switch (counter_display_1)
     {
     case 0:
-        value = NUMBER_ZERO_DISPLAY[counter_test_display];
+        value_display_1 = NUMBER_ZERO_DISPLAY[counter_test_display];
         break;
 
     case 1:
-        value = NUMBER_ONE_DISPLAY[counter_test_display];
+        value_display_1 = NUMBER_ONE_DISPLAY[counter_test_display];
         break;
 
     case 2:
-        value = NUMBER_TWO_DISPLAY[counter_test_display];
+        value_display_1 = NUMBER_TWO_DISPLAY[counter_test_display];
         break;
 
     case 3:
-        value = NUMBER_THREE_DISPLAY[counter_test_display];
+        value_display_1 = NUMBER_THREE_DISPLAY[counter_test_display];
         break;
 
     case 4:
-        value = NUMBER_FOUR_DISPLAY[counter_test_display];
+        value_display_1 = NUMBER_FOUR_DISPLAY[counter_test_display];
         break;
 
     case 5:
-        value = NUMBER_FIVE_DISPLAY[counter_test_display];
+        value_display_1 = NUMBER_FIVE_DISPLAY[counter_test_display];
         break;
 
     case 6:
-        value = NUMBER_SIX_DISPLAY[counter_test_display];
+        value_display_1 = NUMBER_SIX_DISPLAY[counter_test_display];
         break;
 
     case 7:
-        value = NUMBER_SEVEN_DISPLAY[counter_test_display];
+        value_display_1 = NUMBER_SEVEN_DISPLAY[counter_test_display];
         break;
 
     case 8:
-        value = NUMBER_EIGHT_DISPLAY[counter_test_display];
+        value_display_1 = NUMBER_EIGHT_DISPLAY[counter_test_display];
         break;
 
     case 9:
-        value = NUMBER_NINE_DISPLAY[counter_test_display];
+        value_display_1 = NUMBER_NINE_DISPLAY[counter_test_display];
+        break;
+
+    default:
+        break;
+    }
+
+    switch (counter_display_2)
+    {
+    case 0:
+        value_display_2 = NUMBER_ZERO_DISPLAY[counter_test_display];
+        break;
+
+    case 1:
+        value_display_2 = NUMBER_ONE_DISPLAY[counter_test_display];
+        break;
+
+    case 2:
+        value_display_2 = NUMBER_TWO_DISPLAY[counter_test_display];
+        break;
+
+    case 3:
+        value_display_2 = NUMBER_THREE_DISPLAY[counter_test_display];
+        break;
+
+    case 4:
+        value_display_2 = NUMBER_FOUR_DISPLAY[counter_test_display];
+        break;
+
+    case 5:
+        value_display_2 = NUMBER_FIVE_DISPLAY[counter_test_display];
+        break;
+
+    case 6:
+        value_display_2 = NUMBER_SIX_DISPLAY[counter_test_display];
+        break;
+
+    case 7:
+        value_display_2 = NUMBER_SEVEN_DISPLAY[counter_test_display];
+        break;
+
+    case 8:
+        value_display_2 = NUMBER_EIGHT_DISPLAY[counter_test_display];
+        break;
+
+    case 9:
+        value_display_2 = NUMBER_NINE_DISPLAY[counter_test_display];
         break;
 
     default:
@@ -108,10 +161,23 @@ ISR(TIMER0_COMPA_vect)
     {
         counter_test += 1;
 
-        if (value)
+        if (value_display_1)
+        {
+            set_bit(PORTC, PC3);
+        }
+            
+        else {
+            clr_bit(PORTC, PC3);
+        }
+
+        if (value_display_2)
+        {
             set_bit(PORTC, PC4);
-        else
+        }
+            
+        else {
             clr_bit(PORTC, PC4);
+        }
 
         counter_test_display += 1;
 
