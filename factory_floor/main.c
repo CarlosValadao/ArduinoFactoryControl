@@ -32,6 +32,7 @@ unsigned int vel_motor_max_inclination = 100;    // Em ms.
 
 bool is_EI_stop_production_active = false;
 bool is_wood_out_of_axis = false;
+bool is_presence_sensor_active = false;
 
 bool is_backing_OCRA = false;
 bool is_backing_OCR2A = false;
@@ -43,8 +44,9 @@ void config_GPIO()
 {
     DDRB |= 0b00001110;  // Habilita os pinos OC1A, OC1B e OC2A (PB1, PB2 e PB3) como saídas.
     DDRC |= 0b00111011;  // Habilita os pinos PCO, PC1, PC3, PC4, PC5 como saídas.
-    PORTC |= 0b00000010; // Seta o pino PC1 em HIGH.
-    DDRD &= 0b11111011;  // Seta o pino PD2 como saída.
+    PORTC |= 0b00000010; // Seta o pino PC1 em HIGH (Produção ativa).
+    DDRD &= 0b00111011;  // Seta os pinos PD2, PD6 e PD7 como entradas.
+    DDRD |= 0b00001000;  // Seta o pino PD3 como saída.
     PORTD |= 0b00000100; // Habilita pull-up da porta PD2.
     PORTB |= 0b00000001; // Habilita pull-up da porta PB0.
 }
@@ -74,11 +76,12 @@ void config_TIMER2_Fast_PWM()
 {
     // TIMER CT2: modo Fast PW via TOP(0xFF) (modo 3), Prescaler = 1024.
     // F_PWM = ((F_CPU / (Prescaler * TOP)) = 61Hz. F_CPU = 16MHz; Prescaler = 1024;  TOP = 256.
-    TCCR2A = 0b10100011; // Modo 14 não invertido (OC2A/OC2B).
+    TCCR2A = 0b10100011; // Modo 3 não invertido (OC2A/OC2B).
     TCCR2B = 0b00000111; // Prescaler = 1024.
 
     // Definição do Duty Cycle.
     OCR2A = OCR2A_INIT; // 1,95ms ~12%.
+    OCR2B = 0;          // 1,95ms ~12%.
 }
 
 void config_TIMER0_CTC()
@@ -91,7 +94,7 @@ void config_TIMER0_CTC()
 
 void handle_green_LED()
 {
-    if (is_wood_out_of_axis || is_EI_stop_production_active)
+    if (is_wood_out_of_axis || is_EI_stop_production_active || is_presence_sensor_active)
     {
         PORTC &= 0b11111101;
     }
@@ -103,7 +106,7 @@ void handle_green_LED()
 
 int is_production_not_stopped()
 {
-    return !is_EI_stop_production_active && !is_wood_out_of_axis;
+    return !is_EI_stop_production_active && !is_wood_out_of_axis && !is_presence_sensor_active;
 }
 
 void increment_quantity_wood_cutted()
@@ -195,7 +198,6 @@ void run_motor_OCR2A_inclination()
         {
             is_backing_OCR2A = false;
             is_wood_out_of_axis = false;
-            handle_green_LED();
         }
     }
 }
@@ -345,27 +347,49 @@ void handle_displays_7seg()
     handle_clock_display_7_seg();
 }
 
+void handle_sensor_oil_tank_level()
+{
+    if (tst_bit(PIND, PORT7))
+    {
+        OCR2B += 1;
+
+        if (OCR2B == 256)
+            OCR2B = 0;
+    }
+    else
+        OCR2B = 0;
+}
+
+void handle_sensor_presence()
+{
+    if (tst_bit(PIND, PORT6))
+        is_presence_sensor_active = true;
+    else
+        is_presence_sensor_active = false;
+}
+
 // Interrupão externa ativada por qualquer mudança de borda (PD2); usada para parar a produção através de um botão.
 ISR(INT0_vect)
 {
     is_EI_stop_production_active = !is_EI_stop_production_active;
-    handle_green_LED();
 }
 
 // Interrupão externa ativada por qualquer mudança de borda (PB0); usada para simular o sensor de inclinação.
 ISR(PCINT0_vect)
 {
     is_wood_out_of_axis = true;
-    handle_green_LED();
 }
 
-// Interrução do TC0 por comparação (TCNT0 e OCR0A); usada para controlar a velocidade dos servos motores s sincronização de 3 segundos.
+// Interrução do TC0 por comparação (TCNT0 e OCR0A); usada para controlar a velocidade dos servos motores e sincronização de 3 segundos.
 ISR(TIMER0_COMPA_vect)
 {
 
     handle_servo_motors();
     handle_three_seconds_timer();
     handle_displays_7seg();
+    handle_sensor_oil_tank_level();
+    handle_sensor_presence();
+    handle_green_LED();
 }
 
 int main(void)
