@@ -46,7 +46,7 @@ void config_GPIO()
     DDRC |= 0b00111011;  // Habilita os pinos PCO, PC1, PC3, PC4, PC5 como saídas.
     PORTC |= 0b00000010; // Seta o pino PC1 em HIGH (Produção ativa).
     DDRD &= 0b00111011;  // Seta os pinos PD2, PD6 e PD7 como entradas.
-    DDRD |= 0b00001000;  // Seta o pino PD3 como saída.
+    DDRD |= 0b00010000;  // Seta o pino PD4 como saída.
     PORTD |= 0b00000100; // Habilita pull-up da porta PD2.
     PORTB |= 0b00000001; // Habilita pull-up da porta PB0.
 }
@@ -81,7 +81,6 @@ void config_TIMER2_Fast_PWM()
 
     // Definição do Duty Cycle.
     OCR2A = OCR2A_INIT; // 1,95ms ~12%.
-    OCR2B = 0;          // 1,95ms ~12%.
 }
 
 void config_TIMER0_CTC()
@@ -350,14 +349,9 @@ void handle_displays_7seg()
 void handle_sensor_oil_tank_level()
 {
     if (tst_bit(PIND, PORT7))
-    {
-        OCR2B += 1;
-
-        if (OCR2B == 256)
-            OCR2B = 0;
-    }
+        set_bit(PORTD, PD4);
     else
-        OCR2B = 0;
+        clr_bit(PORTD, PD4);
 }
 
 void handle_sensor_presence()
