@@ -1,8 +1,11 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdbool.h>
+#include "DHT.h"
+#include "atmega328p_usart.h"
+#include "main.h"
 
-#define F_CPU 160000000UL
+#define F_CPU 16000000UL
 #define THREE_SECONDS_MILLS 3000
 #define TOP 39999
 #define OCR1A_INIT 2000
@@ -25,6 +28,8 @@ const uint8_t NUMBER_EIGHT_DISPLAY[8] = {0, 1, 1, 1, 1, 1, 1, 1};
 const uint8_t NUMBER_NINE_DISPLAY[8] = {0, 1, 1, 0, 1, 1, 1, 1};
 
 uint8_t quantity_wood_cutted = 0;
+uint8_t temperature;
+uint8_t humidity;
 
 unsigned int vel_motor_max_vertical_cut = 100;   // Em ms.
 unsigned int vel_motor_max_horizontal_cut = 100; // Em ms.
@@ -33,6 +38,7 @@ unsigned int vel_motor_max_inclination = 100;    // Em ms.
 bool is_EI_stop_production_active = false;
 bool is_wood_out_of_axis = false;
 bool is_presence_sensor_active = false;
+bool is_critical_temperature = false;
 
 bool is_backing_OCRA = false;
 bool is_backing_OCR2A = false;
@@ -46,7 +52,7 @@ void config_GPIO()
     DDRC |= 0b00111011;  // Habilita os pinos PCO, PC1, PC3, PC4, PC5 como saídas.
     PORTC |= 0b00000010; // Seta o pino PC1 em HIGH (Produção ativa).
     DDRD &= 0b00111011;  // Seta os pinos PD2, PD6 e PD7 como entradas.
-    DDRD |= 0b00010000;  // Seta o pino PD4 como saída.
+    DDRD |= 0b00011000;  // Seta os pinos PD3 e PD4 como saída.
     PORTD |= 0b00000100; // Habilita pull-up da porta PD2.
     PORTB |= 0b00000001; // Habilita pull-up da porta PB0.
 }
@@ -76,7 +82,7 @@ void config_TIMER2_Fast_PWM()
 {
     // TIMER CT2: modo Fast PW via TOP(0xFF) (modo 3), Prescaler = 1024.
     // F_PWM = ((F_CPU / (Prescaler * TOP)) = 61Hz. F_CPU = 16MHz; Prescaler = 1024;  TOP = 256.
-    TCCR2A = 0b10100011; // Modo 3 não invertido (OC2A/OC2B).
+    TCCR2A = 0b10000011; // Modo 3 não invertido (OC2A).
     TCCR2B = 0b00000111; // Prescaler = 1024.
 
     // Definição do Duty Cycle.
@@ -91,21 +97,21 @@ void config_TIMER0_CTC()
     TIMSK0 |= 0b00000010; // 1ms (64[Prescaler] * (249 + 1)) / 16MHz.
 }
 
+int is_production_not_stopped()
+{
+    return !is_EI_stop_production_active && !is_wood_out_of_axis && !is_presence_sensor_active && !is_critical_temperature;
+}
+
 void handle_green_LED()
 {
-    if (is_wood_out_of_axis || is_EI_stop_production_active || is_presence_sensor_active)
-    {
-        PORTC &= 0b11111101;
-    }
-    else
+    if (is_production_not_stopped())
     {
         PORTC |= 0b00000010;
     }
-}
-
-int is_production_not_stopped()
-{
-    return !is_EI_stop_production_active && !is_wood_out_of_axis && !is_presence_sensor_active;
+    else
+    {
+        PORTC &= 0b11111101;
+    }
 }
 
 void increment_quantity_wood_cutted()
@@ -261,11 +267,50 @@ void handle_three_seconds_timer()
 
     if (counter_three_seconds_init == THREE_SECONDS_MILLS)
     {
-        // PORTC ^= 0b00000001;
+
         counter_three_seconds_init = 0;
+
+        handle_get_temperature();
     }
 }
 
+void handle_temperature()
+{
+    if (temperature < 10 || temperature > 40)
+    {
+        usart_send_string("Critical Temperature!");
+        is_critical_temperature = true;
+        set_bit(PORTD, PD3);
+    }
+    else
+    {
+        usart_sendc(temperature);
+        usart_sendc(humidity);
+        clr_bit(PORTD, PD3);
+        is_critical_temperature = false;
+    }
+}
+
+void handle_get_temperature()
+{
+    DHT_Read(&temperature, &humidity);
+
+    // Check status
+    switch (DHT_GetStatus())
+    {
+    case (DHT_Ok):
+        handle_temperature();
+        break;
+
+    case (DHT_Error_Checksum):
+        usart_send_string("DHT_Error_Checksum!");
+        break;
+
+    case (DHT_Error_Timeout):
+        usart_send_string("DHT_Error_Timeout!");
+        break;
+    }
+}
 void handle_clock_display_7_seg()
 {
     PORTC ^= 0b000000001;
@@ -394,6 +439,14 @@ int main(void)
     config_TIMER1_Fast_PWM();
     config_TIMER2_Fast_PWM();
     config_TIMER0_CTC();
+    DHT_Setup();
+
+    usart_init(
+        USART_ASYNCRONOUS,
+        USART_BAUD_9600,
+        USART_CHAR_SIZE_8_BITS,
+        USART_1_STOP_BIT,
+        USART_PARITY_NONE);
 
     sei();
 
