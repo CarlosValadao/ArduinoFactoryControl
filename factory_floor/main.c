@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include "DHT.h"
 #include "atmega328p_usart.h"
-#include "main.h"
 
 #define F_CPU 16000000UL
 #define THREE_SECONDS_MILLS 3000
@@ -260,17 +259,12 @@ void handle_servo_motors()
     handle_servo_motor_inclination();
 }
 
-void handle_three_seconds_timer()
+void show_factory_status()
 {
-    static unsigned int counter_three_seconds_init = 0;
-    counter_three_seconds_init += 1;
-
-    if (counter_three_seconds_init == THREE_SECONDS_MILLS)
+    if (is_production_not_stopped())
     {
-
-        counter_three_seconds_init = 0;
-
-        handle_get_temperature();
+        usart_sendc(temperature);
+        usart_sendc(humidity);
     }
 }
 
@@ -284,13 +278,10 @@ void handle_temperature()
     }
     else
     {
-        usart_sendc(temperature);
-        usart_sendc(humidity);
         clr_bit(PORTD, PD3);
         is_critical_temperature = false;
     }
 }
-
 void handle_get_temperature()
 {
     DHT_Read(&temperature, &humidity);
@@ -311,6 +302,22 @@ void handle_get_temperature()
         break;
     }
 }
+
+void handle_three_seconds_timer()
+{
+    static unsigned int counter_three_seconds_init = 0;
+    counter_three_seconds_init += 1;
+
+    if (counter_three_seconds_init == THREE_SECONDS_MILLS)
+    {
+
+        counter_three_seconds_init = 0;
+
+        handle_get_temperature();
+        show_factory_status();
+    }
+}
+
 void handle_clock_display_7_seg()
 {
     PORTC ^= 0b000000001;
@@ -401,7 +408,7 @@ void handle_sensor_oil_tank_level()
 
 void handle_sensor_presence()
 {
-    if (tst_bit(PIND, PORT6))
+    if (!tst_bit(PIND, PORT6))
         is_presence_sensor_active = true;
     else
         is_presence_sensor_active = false;
@@ -411,12 +418,18 @@ void handle_sensor_presence()
 ISR(INT0_vect)
 {
     is_EI_stop_production_active = !is_EI_stop_production_active;
+
+    if (is_EI_stop_production_active)
+    {
+        usart_send_string("Stop Performs Successfully!");
+    }
 }
 
 // Interrupão externa ativada por qualquer mudança de borda (PB0); usada para simular o sensor de inclinação.
 ISR(PCINT0_vect)
 {
     is_wood_out_of_axis = true;
+    usart_send_string("Wood out of axis!");
 }
 
 // Interrução do TC0 por comparação (TCNT0 e OCR0A); usada para controlar a velocidade dos servos motores e sincronização de 3 segundos.
