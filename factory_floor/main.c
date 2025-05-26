@@ -14,6 +14,7 @@
 #define set_bit(Y, bit_x) (Y |= (1 << bit_x))
 #define clr_bit(Y, bit_x) (Y &= ~(1 << bit_x))
 #define tst_bit(Y, bit_x) (Y & (1 << bit_x))
+#define CHAR_TO_NUM(value) ((uint8_t)(value - 48))
 
 const uint8_t NUMBER_ZERO_DISPLAY[8] = {0, 0, 1, 1, 1, 1, 1, 1};
 const uint8_t NUMBER_ONE_DISPLAY[8] = {0, 0, 0, 0, 0, 1, 1, 0};
@@ -34,6 +35,9 @@ unsigned int vel_motor_max_vertical_cut = 100;   // Em ms.
 unsigned int vel_motor_max_horizontal_cut = 100; // Em ms.
 unsigned int vel_motor_max_inclination = 100;    // Em ms.
 
+unsigned int counter_vel_motor_init_vertical = 0;
+unsigned int counter_vel_motor_init_horizontal = 0;
+
 bool is_EI_stop_production_active = false;
 bool is_wood_out_of_axis = false;
 bool is_presence_sensor_active = false;
@@ -44,6 +48,25 @@ bool is_backing_OCR2A = false;
 bool is_backing_OCRB = false;
 bool is_complete_vertical_cut = false;
 bool is_complete_horizontal_cut = false;
+bool is_motor_velocity_changed = false;
+
+volatile uint8_t buffer_tx[8] = {0};
+volatile uint8_t buffer_tx_idx = 0;
+
+volatile uint8_t buffer_rx[2] = {0};
+volatile uint8_t buffer_rx_idx = 0;
+
+volatile uint16_t motors_velocity[10] = {
+    0,
+    100,
+    200,
+    300,
+    400,
+    500,
+    600,
+    700,
+    800,
+    900};
 
 void config_GPIO()
 {
@@ -208,12 +231,11 @@ void run_motor_OCR2A_inclination()
 
 void handle_servo_motor_vertical_cut()
 {
-    static unsigned int counter_vel_motor_init = 0;
-    counter_vel_motor_init += 1;
+    counter_vel_motor_init_vertical += 1;
 
-    if (counter_vel_motor_init == vel_motor_max_vertical_cut)
+    if (counter_vel_motor_init_vertical == vel_motor_max_vertical_cut)
     {
-        counter_vel_motor_init = 0;
+        counter_vel_motor_init_vertical = 0;
 
         if (is_production_not_stopped())
         {
@@ -224,12 +246,11 @@ void handle_servo_motor_vertical_cut()
 
 void handle_servo_motor_horizontal_cut()
 {
-    static unsigned int counter_vel_motor_init = 0;
-    counter_vel_motor_init += 1;
+    counter_vel_motor_init_horizontal += 1;
 
-    if (counter_vel_motor_init == vel_motor_max_horizontal_cut)
+    if (counter_vel_motor_init_horizontal == vel_motor_max_horizontal_cut)
     {
-        counter_vel_motor_init = 0;
+        counter_vel_motor_init_horizontal = 0;
 
         if (is_production_not_stopped())
         {
@@ -261,11 +282,19 @@ void handle_servo_motors()
 
 void show_factory_status()
 {
-    if (is_production_not_stopped())
-    {
-        usart_sendc(temperature);
-        usart_sendc(humidity);
-    }
+
+    buffer_tx[0] = temperature;
+    buffer_tx[1] = is_wood_out_of_axis ? 1 : 0;
+    buffer_tx[2] = is_presence_sensor_active ? 1 : 0;
+    buffer_tx[3] = tst_bit(PIND, PORT7) ? 1 : 0;
+    buffer_tx[4] = is_production_not_stopped();
+    buffer_tx[5] = quantity_wood_cutted;
+    buffer_tx[6] = (uint8_t)vel_motor_max_horizontal_cut % 10;
+    buffer_tx[7] = (uint8_t)vel_motor_max_vertical_cut % 10;
+
+    usart_sendc(buffer_tx[0]);
+
+    buffer_tx_idx++;
 }
 
 void handle_temperature()
@@ -314,6 +343,8 @@ void handle_three_seconds_timer()
         counter_three_seconds_init = 0;
 
         handle_get_temperature();
+
+        buffer_tx_idx = 0;
         show_factory_status();
     }
 }
@@ -444,6 +475,28 @@ ISR(TIMER0_COMPA_vect)
     handle_green_LED();
 }
 
+ISR(USART_RX_vect)
+{
+
+    buffer_rx[buffer_rx_idx] = UDR0;
+    buffer_rx_idx++;
+
+    if (buffer_rx_idx == 2)
+    {
+        is_motor_velocity_changed = true;
+        buffer_rx_idx = 0;
+        return;
+    }
+}
+
+ISR(USART_TX_vect)
+{
+
+    if (buffer_tx_idx == 8)
+        return;
+    UDR0 = buffer_tx[buffer_tx_idx++];
+}
+
 int main(void)
 {
 
@@ -456,15 +509,28 @@ int main(void)
 
     usart_init(
         USART_ASYNCRONOUS,
-        USART_BAUD_9600,
+        1000000UL,
         USART_CHAR_SIZE_8_BITS,
         USART_1_STOP_BIT,
         USART_PARITY_NONE);
+
+    usart_enable_interrupt(USART_IRQ_TX_COMPLETE);
+    usart_enable_interrupt(USART_IRQ_RX_COMPLETE);
 
     sei();
 
     while (1)
     {
         handle_quantity_wood_cutted();
+
+        if (is_motor_velocity_changed)
+        {
+            is_motor_velocity_changed = false;
+            vel_motor_max_horizontal_cut = motors_velocity[(buffer_rx[0] - 48)];
+            vel_motor_max_vertical_cut = motors_velocity[(buffer_rx[1] - 48)];
+
+            counter_vel_motor_init_horizontal = 0;
+            counter_vel_motor_init_vertical = 0;
+        }
     };
 }

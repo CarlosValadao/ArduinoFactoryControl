@@ -8,9 +8,9 @@
  * for the ATmega328P microcontroller. It includes functions to initialize, deinitialize, send and receive data, and manage interrupts.
  */
 
-#include "atmega328p_usart.h"   ///< For USART function prototypes and register manipulations
-#include "bit_utils.h"          ///< For bit manipulation utilities
-#include <string.h>             ///< For string handling functions like strlen()
+#include "atmega328p_usart.h" ///< For USART function prototypes and register manipulations
+#include "bit_utils.h"        ///< For bit manipulation utilities
+#include <string.h>           ///< For string handling functions like strlen()
 
 /**
  * @brief Computes the UBRR0 value for the desired baud rate.
@@ -24,7 +24,7 @@
 static uint16_t compute_ubrr0_value(uint32_t baud_rate)
 {
     // The formula for computing UBRR0 is: UBRR0 = (F_CPU / (16 * baud_rate)) - 1
-    return (uint16_t) (F_CPU / 16 / baud_rate - 1);
+    return (uint16_t)(F_CPU / 16 / baud_rate - 1);
 }
 
 /**
@@ -40,8 +40,8 @@ static void set_baud_rate(uint32_t baud_rate)
     // Compute the UBRR0 value for the given baud rate
     uint16_t ubrr0_value = compute_ubrr0_value(baud_rate);
     // Set the high and low bytes of the UBRR0 register
-    UBRR0H = (uint8_t) (ubrr0_value >> 8);  // Set the high byte
-    UBRR0L = (uint8_t) ubrr0_value;         // Set the low byte
+    UBRR0H = (uint8_t)(ubrr0_value >> 8); // Set the high byte
+    UBRR0L = (uint8_t)ubrr0_value;        // Set the low byte
 }
 
 /**
@@ -59,8 +59,8 @@ static void set_baud_rate(uint32_t baud_rate)
 void usart_init(uint8_t mode, uint32_t baud_rate, uint8_t data_bits, uint8_t stop_bits, uint8_t parity)
 {
     // Enable receiver and transmitter
-    set_bit(&UCSR0B, RXEN0);  // Enable receiver
-    set_bit(&UCSR0B, TXEN0);  // Enable transmitter
+    set_bit(&UCSR0B, RXEN0); // Enable receiver
+    set_bit(&UCSR0B, TXEN0); // Enable transmitter
     // Set USART configuration (mode, data bits, stop bits, and parity)
     set_bitmask(&UCSR0C, (mode | data_bits | stop_bits | parity));
     // Set the baud rate
@@ -75,10 +75,10 @@ void usart_init(uint8_t mode, uint32_t baud_rate, uint8_t data_bits, uint8_t sto
 void usart_deinit(void)
 {
     // Disable receiver, transmitter, and clear configuration registers
-    UCSR0B = 0x0;  // Disable receiver and transmitter
-    UCSR0C = 0x0;  // Clear configuration register
-    UBRR0L = 0x0;  // Clear low byte of baud rate register
-    UBRR0H = 0x0;  // Clear high byte of baud rate register
+    UCSR0B = 0x0; // Disable receiver and transmitter
+    UCSR0C = 0x0; // Clear configuration register
+    UBRR0L = 0x0; // Clear low byte of baud rate register
+    UBRR0H = 0x0; // Clear high byte of baud rate register
 }
 
 /**
@@ -91,7 +91,7 @@ void usart_deinit(void)
 void usart_sendc(uint8_t data)
 {
     // Wait until the USART transmit buffer is ready for sending data
-    while(!usart_transmit_ready());
+    // while(!usart_transmit_ready());
     // Load the data into the USART data register for transmission
     UDR0 = data;
 }
@@ -106,7 +106,8 @@ void usart_sendc(uint8_t data)
 uint8_t usart_recvc(void)
 {
     // Wait until data is available in the USART receive buffer
-    while(!usart_available());
+    while (!usart_available())
+        ;
     // Read and return the received byte
     return UDR0;
 }
@@ -121,11 +122,13 @@ uint8_t usart_recvc(void)
 void usart_send_string(const char *restrict str)
 {
     // Send each character in the string
-    while(*str != '\0') {
+    while (*str != '\0')
+    {
         usart_sendc(*str);
-		while(!is_bit_set(UCSR0A, UDRE0));
-		str++;
-	}
+        while (!is_bit_set(UCSR0A, UDRE0))
+            ;
+        str++;
+    }
 }
 
 /**

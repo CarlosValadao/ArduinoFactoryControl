@@ -4,7 +4,7 @@
  * Created: 27/04/2025 03:22:27
  * Author: chval
  *
- * @brief Header file for controlling USART (Universal Synchronous and Asynchronous serial Receiver and Transmitter) 
+ * @brief Header file for controlling USART (Universal Synchronous and Asynchronous serial Receiver and Transmitter)
  * on the ATmega328P microcontroller. This file defines various macros and functions to initialize and use USART
  * in different modes for serial communication.
  */
@@ -13,49 +13,49 @@
 #define ATMEGA328P_USART_H
 
 // Include necessary AVR libraries for USART and bit manipulation
-#include <avr/io.h>         ///< For AVR I/O registers manipulation
-#include <avr/interrupt.h>  ///< For handling interrupts
-#include <stdint.h>         ///< For standard integer types
-#include <stdbool.h>        ///< For boolean types (true/false)
-#include "bit_utils.h"      ///< For bit manipulation utilities
+#include <avr/io.h>        ///< For AVR I/O registers manipulation
+#include <avr/interrupt.h> ///< For handling interrupts
+#include <stdint.h>        ///< For standard integer types
+#include <stdbool.h>       ///< For boolean types (true/false)
+#include "bit_utils.h"     ///< For bit manipulation utilities
 
 #define F_CPU 16000000UL
 
 // USART modes for operation
 #define USART_ASYNCRONOUS 0                            ///< Asynchronous mode for USART
-#define USART_SYNCRONOUS  (1 << UMSEL00)               ///< Synchronous mode for USART
-#define USART_MASTER_SPI  (1 << UMSEL01 | 1 << UMSEL00) ///< Master SPI mode for USART
+#define USART_SYNCRONOUS (1 << UMSEL00)                ///< Synchronous mode for USART
+#define USART_MASTER_SPI (1 << UMSEL01 | 1 << UMSEL00) ///< Master SPI mode for USART
 
 // Baud rate calculation macro based on the formula UBRR = (F_CPU / (16 * BAUD)) - 1
 #define UBRR_VALUE(BAUD) ((F_CPU / (16UL * (BAUD))) - 1)
 
 // Predefined baud rates using the UBRR_VALUE macro
-#define USART_BAUD_9600      UBRR_VALUE(9600)        ///< Baud rate for 9600 bps
-#define USART_BAUD_115200    UBRR_VALUE(115200)      ///< Baud rate for 115200 bps
-#define USART_BAUD_19200     UBRR_VALUE(19200)       ///< Baud rate for 19200 bps
-#define USART_BAUD_38400     UBRR_VALUE(38400)       ///< Baud rate for 38400 bps
-#define USART_BAUD_57600     UBRR_VALUE(57600)       ///< Baud rate for 57600 bps
-#define USART_BAUD_128000    UBRR_VALUE(128000)      ///< Baud rate for 128000 bps
+#define USART_BAUD_9600 UBRR_VALUE(9600)     ///< Baud rate for 9600 bps
+#define USART_BAUD_115200 UBRR_VALUE(115200) ///< Baud rate for 115200 bps
+#define USART_BAUD_19200 UBRR_VALUE(19200)   ///< Baud rate for 19200 bps
+#define USART_BAUD_38400 UBRR_VALUE(38400)   ///< Baud rate for 38400 bps
+#define USART_BAUD_57600 UBRR_VALUE(57600)   ///< Baud rate for 57600 bps
+#define USART_BAUD_128000 UBRR_VALUE(128000) ///< Baud rate for 128000 bps
 
 // USART parity modes
-#define USART_PARITY_NONE 0                             ///< No parity bit
-#define USART_PARITY_ODD  (1 << UPM00)                 ///< Odd parity
-#define USART_PARITY_EVEN (1 << UPM01 | 1 << UPM00)    ///< Even parity
+#define USART_PARITY_NONE 0                         ///< No parity bit
+#define USART_PARITY_ODD (1 << UPM00)               ///< Odd parity
+#define USART_PARITY_EVEN (1 << UPM01 | 1 << UPM00) ///< Even parity
 
 // USART stop bit configuration
-#define USART_1_STOP_BIT 0                             ///< 1 stop bit
-#define USART_2_STOP_BIT (1 << USBS0)                  ///< 2 stop bits
+#define USART_1_STOP_BIT 0            ///< 1 stop bit
+#define USART_2_STOP_BIT (1 << USBS0) ///< 2 stop bits
 
 // USART character size configuration
-#define USART_CHAR_SIZE_5_BITS 0                       ///< 5-bit character size
-#define USART_CHAR_SIZE_6_BITS (1 << UCSZ00)           ///< 6-bit character size
-#define USART_CHAR_SIZE_7_BITS (1 << UCSZ01)           ///< 7-bit character size
+#define USART_CHAR_SIZE_5_BITS 0                           ///< 5-bit character size
+#define USART_CHAR_SIZE_6_BITS (1 << UCSZ00)               ///< 6-bit character size
+#define USART_CHAR_SIZE_7_BITS (1 << UCSZ01)               ///< 7-bit character size
 #define USART_CHAR_SIZE_8_BITS (1 << UCSZ01 | 1 << UCSZ00) ///< 8-bit character size
 
-// USART interrupt enable macros
-#define USART_IRQ_TX_COMPLETE (1 << RXCIE0)            ///< Interrupt for transmission complete
-#define USART_IRQ_RX_COMPLETE (1 << TXCIE0)            ///< Interrupt for reception complete
-#define USART_IRQ_EMPTY       (1 << UDRIE0)            ///< Interrupt for UART Data Register Empty
+// USART interrupt enable macros - CORRIGIDO
+#define USART_IRQ_TX_COMPLETE (1 << TXCIE0) ///< Interrupt for transmission complete
+#define USART_IRQ_RX_COMPLETE (1 << RXCIE0) ///< Interrupt for reception complete
+#define USART_IRQ_EMPTY (1 << UDRIE0)       ///< Interrupt for UART Data Register Empty
 
 /**
  * @brief Initializes USART with the specified parameters.
