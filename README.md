@@ -4,6 +4,8 @@
 
 Sistema embarcado para automação industrial de corte de madeira utilizando dois Arduino Nano, com comunicação UART e controle de sensores/atuadores em linguagem C a nível de registrador.
 
+https://github.com/user-attachments/assets/ee0d8b44-2ab2-4ec5-9211-78080ec37d5b
+
 ## 🎯 Objetivos
 
 - Implementar controle industrial para corte de blocos de madeira (10cm x 25cm) 🪵✂️
@@ -73,6 +75,8 @@ Sistema embarcado para automação industrial de corte de madeira utilizando doi
   - Rotinas de interrupção ⚡
   - Máquina de estados principal 🤖
   - Comunicação serial 📡
+
+https://github.com/user-attachments/assets/05b8c521-ddcb-4a35-952d-934ee19167f8
 
 ## 📋 Especificações de Funcionamento
 
